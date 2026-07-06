@@ -36,8 +36,8 @@ function Homepage() {
       {/* Navbar */}
       <nav className="flex px-12 py-5 justify-between items-center bg-slate-950/50 border-b border-slate-850 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <img src="/codemeet_logo.svg" alt="CodeMeet Logo" className="h-8 w-8 rounded-lg shadow-sm object-contain" />
-          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">codemeet</span>
+          <img src="/codesync_logo.svg" alt="CodeSync Logo" className="h-8 w-8 rounded-lg shadow-sm object-contain" />
+          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">codesync</span>
         </div>
 
         <div className="flex items-center gap-8">
@@ -191,7 +191,7 @@ function Homepage() {
       <section id="how-it-works" className="max-w-7xl mx-auto px-12 py-20 w-full border-t border-slate-900 bg-slate-950/20">
         <div className="text-center mb-16">
           <h2 className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-3">Workflow</h2>
-          <p className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">How CodeMeet Works</p>
+          <p className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">How CodeSync Works</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -224,14 +224,14 @@ function Homepage() {
         <div className="max-w-7xl mx-auto flex flex-wrap justify-between gap-10">
           <div className="w-full sm:w-1/4 mb-6 sm:mb-0 space-y-4">
             <div className="flex items-center gap-3">
-              <img src="/codemeet_logo.svg" alt="CodeMeet Logo" className="h-6 w-6 rounded-md shadow-sm object-contain" />
-              <span className="text-base font-bold text-white tracking-wider">codemeet</span>
+              <img src="/codesync_logo.svg" alt="CodeSync Logo" className="h-6 w-6 rounded-md shadow-sm object-contain" />
+              <span className="text-base font-bold text-white tracking-wider">codesync</span>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
               Ace your developer technical interviews with real-time editing, note-taking, and calling capabilities.
             </p>
             <p className="text-xs text-slate-500 pt-2">
-              &copy; 2026 codemeet. All rights reserved.
+              &copy; 2026 codesync. All rights reserved.
             </p>
           </div>
 

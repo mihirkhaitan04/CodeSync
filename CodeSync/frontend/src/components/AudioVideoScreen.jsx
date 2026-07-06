@@ -387,9 +387,9 @@ function AudioVideoScreen() {
       {/* Header / Navbar */}
       <header className="flex items-center justify-between px-12 py-4 border-b border-slate-800/80 bg-slate-950/50 backdrop-blur-md sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <img src="/codemeet_logo.svg" alt="CodeMeet Logo" className="h-8 w-8 rounded-lg shadow-sm object-contain" />
+          <img src="/codesync_logo.svg" alt="CodeSync Logo" className="h-8 w-8 rounded-lg shadow-sm object-contain" />
           <div>
-            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">CodeMeet</h1>
+            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">CodeSync</h1>
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider -mt-0.5">Collaborative Interview</p>
           </div>
         </div>

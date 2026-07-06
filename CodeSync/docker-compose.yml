@@ -13,7 +13,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      MONGO_URI: "mongodb://host.docker.internal:27017/codemeet"
+      MONGO_URI: "mongodb://host.docker.internal:27017/codesync"
       PORT: "3000"
       PISTON_URL: "http://piston:2000"
     extra_hosts:
