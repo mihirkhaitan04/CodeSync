@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>CodeSync Interview Guide</title>
+<style>
+body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.7;color:#1a1a1a;font-size:14px}
+h1{text-align:center;border-bottom:3px solid #333;padding-bottom:10px}
+h2{background:#1a1a1a;color:#fff;padding:8px 15px;margin-top:40px;font-size:16px}
+h3{color:#1a56db;margin-top:25px;font-size:14px}
+.answer{background:#f0f4ff;border-left:4px solid #1a56db;padding:10px 15px;margin:8px 0}
+code{background:#e8e8e8;padding:2px 5px;font-size:13px;font-family:Consolas,monospace}
+pre{background:#1a1a2e;color:#e0e0e0;padding:12px;border-radius:6px;overflow-x:auto;font-size:12px}
+.tag{display:inline-block;background:#dbeafe;color:#1a56db;padding:2px 8px;border-radius:10px;font-size:11px;margin:2px}
+table{width:100%;border-collapse:collapse;margin:10px 0}
+td,th{border:1px solid #ccc;padding:6px 10px;font-size:13px;text-align:left}
+th{background:#f0f0f0}
+@media print{h2{break-before:auto}body{font-size:12px}pre{font-size:11px}}
+</style></head><body>
+<h1>🔥 CodeSync — Complete Interview Guide<br><small style="font-size:14px">Basic → Pro | 100+ Questions | Print-Ready</small></h1>
+<p style="text-align:center"><strong>Project:</strong> Real-time Collaborative IDE & Technical Interview Platform<br>
+<strong>Stack:</strong> React 18, Vite, TailwindCSS, Node.js, Express, Socket.io, WebRTC/PeerJS, MongoDB, Docker, Piston API</p>
+
+<h2>SECTION 1: WEB FUNDAMENTALS (Basics)</h2>
+
+<h3>Q1: What is HTTP and how does it work?</h3>
+<div class="answer">HTTP (HyperText Transfer Protocol) is a request-response protocol. The client (browser) sends a request (GET, POST, PUT, DELETE) to a server, and the server sends back a response with a status code (200 OK, 404 Not Found, 500 Server Error) and data. HTTP is <strong>stateless</strong> — each request is independent; the server doesn't remember previous requests. This is why we need cookies/tokens for authentication.</div>
+
+<h3>Q2: What is the difference between HTTP and HTTPS?</h3>
+<div class="answer">HTTPS adds TLS/SSL encryption on top of HTTP. Data is encrypted in transit so attackers can't read it (man-in-the-middle attacks). In CodeSync, HTTPS is critical because we transmit JWT tokens and user credentials. In production, we'd enforce HTTPS and add HSTS (HTTP Strict Transport Security) headers.</div>
+
+<h3>Q3: What is REST API?</h3>
+<div class="answer">REST (Representational State Transfer) is an architectural style for APIs. It uses standard HTTP methods: <code>GET</code> (read), <code>POST</code> (create), <code>PUT</code> (update), <code>DELETE</code> (remove). In CodeSync, our backend exposes REST endpoints:
+<br>• <code>POST /api/register</code> — create user
+<br>• <code>POST /api/login</code> — authenticate user
+<br>• <code>POST /api/logout</code> — clear session
+<br>• <code>POST /api/execute/code</code> — run code</div>
+
+<h3>Q4: What is JSON?</h3>
+<div class="answer">JavaScript Object Notation — a lightweight data format for exchanging data between client and server. Every API request/response in CodeSync uses JSON. Example: <code>{"username": "mihir", "password": "***"}</code>. Express parses it with <code>app.use(express.json())</code>.</div>
+
+<h3>Q5: What is the DOM?</h3>
+<div class="answer">Document Object Model — the browser's tree representation of HTML. JavaScript can manipulate it to update the UI. React creates a <strong>Virtual DOM</strong> — a lightweight copy. When state changes, React diffs the Virtual DOM against the real DOM and only updates what changed. This is called <strong>reconciliation</strong> and is why React is fast.</div>
+
+<h3>Q6: What are WebSockets? Why can't we just use HTTP for real-time?</h3>
+<div class="answer"><strong>Problem with HTTP:</strong> HTTP is request-response. The client must ask the server for updates (polling). For real-time code sync, polling every 100ms wastes bandwidth and adds latency.
+<br><br><strong>WebSockets solution:</strong> A WebSocket is a persistent, full-duplex (two-way) connection between client and server. Once established via an HTTP upgrade handshake, both sides can send messages at any time without re-establishing connections.
+<br><br><strong>In CodeSync:</strong> When User A types code, the change is instantly pushed to User B through the WebSocket — no polling, no delay.
+<pre>// HTTP: Client must ask
+Client → "Any new code?" → Server → "No"
+Client → "Any new code?" → Server → "Yes, here"
+
+// WebSocket: Server pushes instantly
+User A types → Server → pushes to User B (instant)</pre></div>
+
+<h3>Q7: What is Socket.io and why use it over raw WebSockets?</h3>
+<div class="answer">Socket.io is a library built ON TOP of WebSockets that adds:
+<br>1. <strong>Auto-reconnection</strong> — if network drops, it reconnects automatically
+<br>2. <strong>Rooms</strong> — <code>socket.join(room)</code> groups users; <code>socket.to(room).emit()</code> broadcasts only to that group
+<br>3. <strong>Fallback</strong> — if WebSockets are blocked (corporate firewalls), it falls back to HTTP long-polling
+<br>4. <strong>Event-based API</strong> — <code>socket.emit('event', data)</code> and <code>socket.on('event', callback)</code>
+<br>5. <strong>Acknowledgements</strong> — confirm message delivery
+<br><br>Raw WebSockets give you none of these. You'd have to implement rooms, reconnection, and serialization manually.</div>
+
+<h3>Q8: What is CORS and why does it exist?</h3>
+<div class="answer"><strong>Cross-Origin Resource Sharing.</strong> Browsers block requests from one origin (e.g., <code>localhost:5174</code>) to a different origin (<code>localhost:3000</code>) for security (prevents malicious sites from calling your API).
+<br><br>In CodeSync, our frontend (port 5174) and backend (port 3000) are different origins. We configure Express to allow our frontend:
+<pre>app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:5174",
+           "https://codesync-mihirkhaitan04s-projects.vercel.app"],
+  credentials: true  // allows cookies to be sent
+}));</pre></div>
+
+<h3>Q9: What is a cookie vs localStorage vs sessionStorage?</h3>
+<div class="answer">
+<table>
+<tr><th>Feature</th><th>Cookie</th><th>localStorage</th><th>sessionStorage</th></tr>
+<tr><td>Size</td><td>4KB</td><td>5-10MB</td><td>5-10MB</td></tr>
+<tr><td>Sent with requests?</td><td>Yes (automatic)</td><td>No</td><td>No</td></tr>
+<tr><td>Persistence</td><td>Configurable expiry</td><td>Permanent until cleared</td><td>Until tab closes</td></tr>
+<tr><td>Use in CodeSync</td><td>JWT token (httpOnly)</td><td>Token + username</td><td>roomId + status</td></tr>
+</table>
+We use <code>localStorage</code> for persistent auth (survives page refresh) and <code>sessionStorage</code> for room state (cleared when tab closes — you shouldn't auto-rejoin old rooms).</div>
+
+<h3>Q10: What is NPM and package.json?</h3>
+<div class="answer">NPM (Node Package Manager) installs JavaScript libraries. <code>package.json</code> lists all dependencies. Key sections:
+<br>• <code>dependencies</code> — production packages (react, express, mongoose)
+<br>• <code>devDependencies</code> — development only (eslint, vite, tailwindcss)
+<br>• <code>scripts</code> — shortcuts like <code>"dev": "vite"</code> (run with <code>npm run dev</code>)
+<br><br><code>package-lock.json</code> locks exact versions to ensure everyone gets identical installs. <code>node_modules/</code> contains the actual downloaded code (never commit it — listed in <code>.gitignore</code>).</div>
+
+<h2>SECTION 2: REACT FUNDAMENTALS</h2>
+
+<h3>Q11: What is React and why use it?</h3>
+<div class="answer">React is a JavaScript library for building user interfaces using reusable <strong>components</strong>. Key benefits:
+<br>1. <strong>Component-based</strong> — UI is split into independent, reusable pieces (CodeEditor, Notepad, Output)
+<br>2. <strong>Virtual DOM</strong> — only updates what changed, not the entire page
+<br>3. <strong>Declarative</strong> — you describe WHAT the UI should look like, React figures out HOW to update it
+<br>4. <strong>Massive ecosystem</strong> — thousands of libraries (Monaco Editor, ReactQuill, React Router)</div>
+
+<h3>Q12: What is JSX?</h3>
+<div class="answer">JSX is a syntax extension that lets you write HTML-like code inside JavaScript. It's not valid JavaScript — Vite (via SWC/Babel) transpiles it to <code>React.createElement()</code> calls. Example:
+<pre>// JSX (what you write):
+&lt;button onClick={handleRun}&gt;Run Code&lt;/button&gt;
+
+// Transpiled (what browser sees):
+React.createElement('button', {onClick: handleRun}, 'Run Code')</pre></div>
+
+<h3>Q13: Explain useState, useEffect, useRef, and useContext.</h3>
+<div class="answer">
+<strong>useState</strong> — stores component state. When state changes, component re-renders.
+<br><code>const [language, setLanguage] = useState("c");</code>
+<br><br><strong>useEffect</strong> — runs side effects (API calls, socket listeners, subscriptions). The dependency array controls when it re-runs.
+<br><code>useEffect(() => { socket.on("recieve-message", ...); return () => socket.off("recieve-message"); }, [socket]);</code>
+<br><br><strong>useRef</strong> — stores a mutable value that persists across renders WITHOUT causing re-renders. Used for: DOM refs (<code>videoRef.current</code>), storing latest values to avoid stale closures.
+<br><code>const editorRef = useRef(null); // access: editorRef.current</code>
+<br><br><strong>useContext</strong> — reads values from a React Context (shared state). Avoids prop drilling.
+<br><code>const { user, socket, roomId } = useContext(DataContext);</code></div>
+
+<h3>Q14: What is prop drilling and how does Context solve it?</h3>
+<div class="answer"><strong>Prop drilling:</strong> passing props through many intermediate components that don't use them.
+<br>Example: App → MainPage → AudioVideoScreen → CodeEditor → Output (all need <code>socket</code>)
+<br><br><strong>Context solution:</strong> <code>DataProvider</code> wraps the app at the top level. Any component can directly access <code>socket</code>, <code>user</code>, <code>roomId</code> via <code>useContext(DataContext)</code> without passing through parents.</div>
+
+<h3>Q15: What is React Router and how do protected routes work?</h3>
+<div class="answer">React Router enables client-side navigation without full page reloads (SPA behavior).
+<pre>// App.jsx — Protected routes:
+&lt;Route path="/" element={user ? &lt;Homepage /&gt; : &lt;Navigate to="/login" /&gt;} /&gt;
+&lt;Route path="/login" element={!user ? &lt;Login /&gt; : &lt;Navigate to="/" /&gt;} /&gt;
+&lt;Route path="/room" element={user ? &lt;MainPage /&gt; : &lt;Navigate to="/login" /&gt;} /&gt;</pre>
+If <code>user</code> is null → redirect to login. If logged in → redirect away from login. This is a ternary-based guard pattern.</div>
+
+<h3>Q16: What is the Virtual DOM diffing algorithm?</h3>
+<div class="answer">When state changes, React creates a new Virtual DOM tree and compares it with the previous one (diffing). It uses two heuristics:
+<br>1. Elements of different types produce different trees (full rebuild)
+<br>2. Elements with stable <code>key</code> props are matched across renders
+<br>Then React calculates the minimum set of DOM mutations needed and applies them in a batch. This is called <strong>reconciliation</strong>.</div>
+
+<h2>SECTION 3: NODE.JS & EXPRESS FUNDAMENTALS</h2>
+
+<h3>Q17: What is Node.js?</h3>
+<div class="answer">Node.js is a JavaScript runtime built on Chrome's V8 engine. It allows JavaScript to run on the server (outside the browser). Key feature: <strong>non-blocking, event-driven I/O</strong>. It uses a single-threaded event loop that handles thousands of concurrent connections by delegating I/O operations to the OS kernel. This is perfect for CodeSync — WebSocket connections are I/O-bound (waiting for messages), not CPU-bound.</div>
+
+<h3>Q18: What is Express.js?</h3>
+<div class="answer">Express is a minimal web framework for Node.js. It provides:
+<br>• <strong>Routing</strong> — <code>app.get('/', handler)</code>, <code>router.post('/login', login)</code>
+<br>• <strong>Middleware</strong> — functions that process requests in a pipeline: <code>app.use(cors())</code>, <code>app.use(express.json())</code>, <code>app.use(cookieParser())</code>
+<br>• <strong>Request/Response</strong> — <code>req.body</code> (parsed JSON), <code>res.status(200).json({...})</code>
+<br><br>In CodeSync, Express handles REST API routes (auth + code execution) while Socket.io handles real-time events.</div>
+
+<h3>Q19: What is middleware in Express?</h3>
+<div class="answer">Middleware are functions that execute in order for every request. Each has access to <code>(req, res, next)</code>. Call <code>next()</code> to pass to the next middleware.
+<pre>// Our middleware pipeline:
+app.use(express.json());        // 1. Parse JSON body
+app.use(express.urlencoded());  // 2. Parse URL-encoded forms
+app.use(cookieParser());        // 3. Parse cookies
+app.use(cors({...}));           // 4. Handle CORS headers
+app.use("/api", auth);          // 5. Auth routes
+app.use("/api/execute", execute); // 6. Code execution routes</pre></div>
+
+<h3>Q20: What is the Event Loop?</h3>
+<div class="answer">Node.js processes everything on a single thread using an event loop:
+<br>1. Execute synchronous code
+<br>2. Check if there are pending callbacks (I/O, timers, etc.)
+<br>3. Execute ready callbacks
+<br>4. Repeat
+<br><br>When a database query runs (<code>User.findOne()</code>), Node doesn't block — it delegates to the OS, continues processing other events, and executes the callback when the query completes. This is why a single Node process can handle thousands of concurrent WebSocket connections in CodeSync.</div>
+
+<h2>SECTION 4: AUTHENTICATION & SECURITY</h2>
+
+<h3>Q21: What is JWT and how does it work?</h3>
+<div class="answer">JWT (JSON Web Token) has 3 parts separated by dots: <code>header.payload.signature</code>
+<br>• <strong>Header:</strong> algorithm (HS256) + type (JWT)
+<br>• <strong>Payload:</strong> data — <code>{id: user._id}</code>
+<br>• <strong>Signature:</strong> <code>HMAC-SHA256(header + payload, JWT_SECRET)</code>
+<br><br>The server signs the token with a secret key. On subsequent requests, the server verifies the signature — if it matches, the token is valid. No database lookup needed (stateless).
+<pre>// Login — create token:
+const token = jwt.sign({id: user._id}, process.env.JWT_SECRET);
+res.cookie("token", token);
+
+// Frontend — persist:
+localStorage.setItem("token", data.token);
+localStorage.setItem("username", username);</pre></div>
+
+<h3>Q22: Why are passwords stored in PLAIN TEXT? Isn't that a security risk?</h3>
+<div class="answer"><strong>YES — this is the #1 security vulnerability in the current codebase.</strong> Passwords are compared directly:
+<pre>if (user.password === password) { // INSECURE! }</pre>
+If the MongoDB database is breached, all passwords are exposed in cleartext. <strong>The fix:</strong>
+<pre>import bcrypt from 'bcrypt';
+
+// On signup — hash with 12 salt rounds:
+const hashed = await bcrypt.hash(password, 12);
+const user = new User({...fields, password: hashed});
+
+// On login — compare:
+const isMatch = await bcrypt.compare(password, user.password);
+if (!isMatch) return res.status(401).send("password incorrect");</pre>
+<strong>Why bcrypt?</strong> It's intentionally slow (configurable via salt rounds), making brute-force attacks impractical. Even if the DB is leaked, attackers can't reverse the hashes.
+<br><br><strong>Interview tip:</strong> Proactively mention this: "I'm aware this is a security gap — bcrypt hashing would be the first production improvement I'd make."</div>
+
+<h3>Q23: What other security improvements would you make?</h3>
+<div class="answer">
+1. <strong>JWT expiry</strong> — <code>jwt.sign({id}, secret, {expiresIn: '24h'})</code> + refresh tokens
+<br>2. <strong>Rate limiting</strong> — <code>express-rate-limit</code> on login/register/execute endpoints
+<br>3. <strong>Helmet.js</strong> — security headers (X-Frame-Options, X-XSS-Protection, CSP)
+<br>4. <strong>Input validation</strong> — validate email format, password length, sanitize code input
+<br>5. <strong>HTTPS enforcement</strong> — TLS in production + HSTS
+<br>6. <strong>httpOnly cookies</strong> — prevent XSS from accessing JWT via JavaScript
+<br>7. <strong>MongoDB injection prevention</strong> — the regex in login (<code>new RegExp("^" + username + "$")</code>) is vulnerable to ReDoS attacks; use <code>escapeRegex()</code> or exact match
+</div>
+
+<h2>SECTION 5: DATABASE (MongoDB)</h2>
+
+<h3>Q24: What is MongoDB? SQL vs NoSQL?</h3>
+<div class="answer">
+<table>
+<tr><th></th><th>SQL (PostgreSQL)</th><th>NoSQL (MongoDB)</th></tr>
+<tr><td>Data Model</td><td>Tables with rows and columns</td><td>Collections with JSON documents</td></tr>
+<tr><td>Schema</td><td>Fixed (migrations needed)</td><td>Flexible (can vary per document)</td></tr>
+<tr><td>Relationships</td><td>JOINs</td><td>Embedded documents / references</td></tr>
+<tr><td>Scaling</td><td>Vertical (bigger server)</td><td>Horizontal (sharding)</td></tr>
+<tr><td>Best for</td><td>Complex relations, ACID transactions</td><td>Flexible schemas, document data, real-time</td></tr>
+</table></div>
+
+<h3>Q25: Why MongoDB for CodeSync?</h3>
+<div class="answer">1. Data is document-shaped — User = <code>{name, email, username, password}</code> = a JSON document
+<br>2. No complex JOINs — we never join Users with Rooms relationally
+<br>3. Schema flexibility — can add room metadata, code snapshots without migrations
+<br>4. Horizontal scaling via sharding — easier than PostgreSQL partitioning
+<br>5. MongoDB Atlas provides a free cloud-hosted tier with auto-scaling</div>
+
+<h3>Q26: What is Mongoose?</h3>
+<div class="answer">Mongoose is an <strong>ODM (Object-Document Mapper)</strong> for MongoDB — it maps JavaScript objects to MongoDB documents. It provides schema validation, type casting, and query building:
+<pre>const userSchema = new Schema({
+  name:     { type: String, required: true },
+  email:    { type: String, required: true, unique: true },
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
+const User = mongoose.model("User", userSchema);</pre>
+<code>unique: true</code> creates a MongoDB unique index, preventing duplicate emails/usernames at the database level (not just application level).</div>
+
+<h3>Q27: What is MongoDB Atlas?</h3>
+<div class="answer">MongoDB Atlas is the cloud-hosted version of MongoDB. Instead of running <code>mongod</code> locally, Atlas manages the database server for you. Benefits: automatic backups, monitoring dashboard, auto-scaling, global clusters. Our connection string:
+<pre>mongodb+srv://user:pass@cluster0.ug3pmsb.mongodb.net/codesync</pre>
+The <code>+srv</code> protocol uses DNS to discover all replica set members automatically.</div>
+
+<p style="text-align:center;margin-top:40px;font-size:12px;color:#888">— End of Part 1: Fundamentals (Q1-Q27) — Continue to Part 2 for project-specific deep-dive —</p>
+</body></html>

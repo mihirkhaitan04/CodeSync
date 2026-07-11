@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>CodeSync Interview Guide - Part 2</title>
+<style>
+body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.7;color:#1a1a1a;font-size:14px}
+h1{text-align:center;border-bottom:3px solid #333;padding-bottom:10px}
+h2{background:#1a1a1a;color:#fff;padding:8px 15px;margin-top:40px;font-size:16px}
+h3{color:#1a56db;margin-top:25px;font-size:14px}
+.answer{background:#f0f4ff;border-left:4px solid #1a56db;padding:10px 15px;margin:8px 0}
+code{background:#e8e8e8;padding:2px 5px;font-size:13px;font-family:Consolas,monospace}
+pre{background:#1a1a2e;color:#e0e0e0;padding:12px;border-radius:6px;overflow-x:auto;font-size:12px}
+table{width:100%;border-collapse:collapse;margin:10px 0}
+td,th{border:1px solid #ccc;padding:6px 10px;font-size:13px;text-align:left}
+th{background:#f0f0f0}
+@media print{h2{break-before:auto}body{font-size:12px}}
+</style></head><body>
+<h1>CodeSync Interview Guide — Part 2<br><small style="font-size:14px">Project Deep-Dive (Q28-Q60)</small></h1>
+
+<h2>SECTION 6: CODESYNC ARCHITECTURE</h2>
+
+<h3>Q28: Give a 60-second elevator pitch of CodeSync.</h3>
+<div class="answer">"CodeSync is a real-time collaborative IDE and technical interview platform. Two users — interviewer and interviewee — join a shared room to collaboratively write and execute code in 6 languages, take shared rich-text notes, and communicate over peer-to-peer video/audio calls. Built with React+Vite frontend, Node.js+Socket.io backend, PeerJS/WebRTC for P2P streaming, MongoDB Atlas for persistence, and Piston API for sandboxed Docker-based code execution."</div>
+
+<h3>Q29: Walk me through the complete user flow.</h3>
+<div class="answer">1. User visits app → React Router redirects to <code>/login</code><br>
+2. Signs up → <code>POST /api/register</code> → saves to MongoDB<br>
+3. Logs in → <code>POST /api/login</code> → server returns JWT cookie<br>
+4. Frontend stores token in localStorage, updates Context<br>
+5. Homepage renders → "Start Interview" or "Join Interview" buttons<br>
+6. <strong>Interviewer</strong> clicks Start → PopupModal generates Room ID (= PeerJS peer ID)<br>
+7. <strong>Interviewee</strong> clicks Join → enters Room ID → navigates to <code>/room</code><br>
+8. AudioVideoScreen mounts: Socket.io joins room, PeerJS establishes WebRTC call<br>
+9. Both users see: video feeds, Monaco code editor, ReactQuill notepad, execution panel<br>
+10. Any code/note/language change broadcasts via Socket.io to the other user<br>
+11. "Run Code" sends <code>POST /api/execute/code</code> → Piston executes → output synced to both users</div>
+
+<h3>Q30: Explain the folder structure.</h3>
+<div class="answer"><pre>CodeSync/
+├── backend/
+│   ├── server.js              # Express + Socket.io + CORS + 12 event handlers
+│   ├── controllers/authControllers.js  # login/signup/logout logic + JWT
+│   ├── db/connectDb.js        # Mongoose connection to MongoDB Atlas
+│   ├── db/model.js            # User schema
+│   ├── routes/auth.js         # POST /api/login, /register, /logout
+│   ├── routes/execute.js      # POST /api/execute/code → Piston (with fallback)
+│   ├── Dockerfile             # node:20, EXPOSE 3000
+│   └── .env                   # MONGO_URI, JWT_SECRET, PISTON_URL
+├── frontend/
+│   ├── index.html             # SPA entry, loads main.jsx
+│   ├── src/main.jsx           # ReactDOM.createRoot, DataProvider + ThemeProvider
+│   ├── src/App.jsx            # React Router with 4 protected routes
+│   ├── src/context/DataProvider.jsx  # Global state: user, socket, roomId, peer
+│   ├── src/pages/Login|Signup|Homepage|MainPage.jsx
+│   ├── src/components/AudioVideoScreen|CodeEditor|Output|Notepad|...jsx
+│   ├── vite.config.js         # Vite + React SWC plugin
+│   ├── tailwind.config.js     # TailwindCSS config
+│   └── Dockerfile             # node:20, --legacy-peer-deps, EXPOSE 5173
+├── docker-compose.yml         # Orchestrates piston + backend + frontend
+├── Jenkinsfile                # 6-stage CI/CD pipeline
+├── azure-pipelines.yml        # Azure DevOps pipeline
+└── .github/workflows/         # GitHub Actions auto-deploy</pre></div>
+
+<h2>SECTION 7: FRONTEND DEEP-DIVE</h2>
+
+<h3>Q31: Why Vite over Create React App?</h3>
+<div class="answer">Vite uses native ES modules in dev → only transforms the changed module (instant HMR). CRA uses Webpack which bundles everything on each save. Vite uses ESBuild for transpilation (100x faster than Babel) and Rollup for production builds with tree-shaking.</div>
+
+<h3>Q32: What is the DataProvider pattern?</h3>
+<div class="answer">DataProvider.jsx creates a React Context that wraps the entire app. It initializes: Socket.io connection, PeerJS instance, and auth state from localStorage. Every component can access shared state via <code>useContext(DataContext)</code> without prop drilling. It stores: <code>user, setUser, socket, roomId, setRoomId, status, setStatus, peerInstance, peerId, setPeerId</code>.</div>
+
+<h3>Q33: Why Context API and not Redux?</h3>
+<div class="answer">Only ~7 shared values, flat state structure, no complex reducers needed. Redux would add boilerplate (actions, reducers, store, dispatch) for a simple use case. For scaling to many features, I'd consider Zustand or Redux Toolkit.</div>
+
+<h3>Q34: What is Monaco Editor?</h3>
+<div class="answer">Monaco is the same editor engine that powers VS Code. It provides syntax highlighting, IntelliSense, bracket matching, and multi-language support. We use <code>@monaco-editor/react</code> wrapper with theme <code>vs-dark</code>, font <code>Fira Code</code>, and minimap disabled.</div>
+
+<h3>Q35: How does real-time code synchronization work?</h3>
+<div class="answer">Every keystroke triggers <code>handleEditorChange</code> → emits full editor content via Socket.io:
+<pre>socket.emit("message", { room: roomId, data: value });</pre>
+Other user receives <code>"recieve-message"</code> event → <code>setValue(data)</code> updates their Monaco editor.
+<br><br>For late joiners: on mount, <code>socket.emit("request-code-sync", roomId)</code> → existing user responds with current code, language, and version → new user syncs up.</div>
+
+<h3>Q36: Why useRef alongside useState in CodeEditor?</h3>
+<div class="answer"><strong>Stale closure problem:</strong> Socket event handlers are registered in useEffect. They capture the state value at registration time. If state updates later, the handler still sees the old value.
+<br><br><strong>Fix:</strong> <code>useRef</code> always holds the latest value:
+<pre>const valueRef = useRef(value);
+useEffect(() => { valueRef.current = value; }, [value]);
+
+// In socket handler — always reads latest value:
+socket.on("request-code-sync", () => {
+  socket.emit("sync-code", { code: valueRef.current }); // always fresh
+});</pre></div>
+
+<h3>Q37: What is ReactDOM.createPortal?</h3>
+<div class="answer">Renders a component into a different DOM node (e.g., <code>document.body</code>) instead of the parent tree. Used for Focus Mode modals in CodeEditor, Notepad, and Output. Benefits: escapes <code>overflow:hidden</code> and z-index stacking contexts. React events still bubble through the React tree.</div>
+
+<h3>Q38: How does the language switching work?</h3>
+<div class="answer">1. User selects language from LanguageDropdown → <code>handleLanguageChange(lang, version)</code><br>
+2. Sets local state + loads boilerplate template from BOILERPLATES object<br>
+3. Emits TWO events: <code>"message"</code> (new code) + <code>"change-language"</code> (language setting)<br>
+4. Other user receives both events → Monaco re-highlights with new syntax rules</div>
+
+<h3>Q39: How does the Notepad sync work?</h3>
+<div class="answer">Uses ReactQuill (Quill.js wrapper). On every content change:
+<pre>socket.emit("text-change", { room: roomId, data: newValue });</pre>
+Other user receives <code>"recieve-text"</code> → <code>setValue(data)</code>. Same late-joiner pattern: <code>"request-notes-sync"</code> → existing user responds with current notes.</div>
+
+<h3>Q40: What is the requiresInput() function?</h3>
+<div class="answer">Static code analysis that checks if user's code contains input-reading functions before execution:
+<br>• C: <code>scanf</code>, <code>getchar</code>, <code>fgets</code>
+<br>• C++: <code>cin</code>, <code>getline</code>
+<br>• Python: <code>input(</code>
+<br>• Java: <code>scanner</code>, <code>system.in</code>
+<br>If detected and stdin is empty, a modal prompts the user. Prevents hanging/timeouts on Piston API.</div>
+
+<h2>SECTION 8: WEBRTC & VIDEO CALLS</h2>
+
+<h3>Q41: What is WebRTC?</h3>
+<div class="answer">Web Real-Time Communication — a browser API for direct peer-to-peer audio/video/data streaming. Media flows directly between browsers, NOT through the server. This reduces latency and server costs.</div>
+
+<h3>Q42: What is PeerJS?</h3>
+<div class="answer">PeerJS is a wrapper around WebRTC that simplifies the API. Raw WebRTC requires manual SDP offer/answer exchange, ICE candidate handling, and signaling. PeerJS handles all of this with a simple <code>peer.call(peerId, stream)</code> API and provides a free signaling server.</div>
+
+<h3>Q43: What are STUN, TURN, and ICE?</h3>
+<div class="answer"><strong>STUN</strong> (Session Traversal Utilities for NAT) — discovers your public IP/port. Most home networks use NAT, so your private IP isn't reachable from outside. STUN tells you your public address.
+<br><br><strong>TURN</strong> (Traversal Using Relays around NAT) — relay server. When direct P2P fails (symmetric NATs, corporate firewalls), TURN routes media through its server as a fallback. More expensive but always works.
+<br><br><strong>ICE</strong> (Interactive Connectivity Establishment) — framework that tries multiple connection methods (direct, STUN, TURN) and picks the best one.
+<br><br>In CodeSync, we configure 4 ICE servers (1 STUN + 3 TURN with different transports).</div>
+
+<h3>Q44: How does the video call flow work?</h3>
+<div class="answer">1. Interviewer creates room → PeerJS assigns peer ID = Room ID<br>
+2. Interviewee joins → gets local camera stream via <code>getUserMedia({video:true, audio:true})</code><br>
+3. Interviewee calls: <code>peerInstance.current.call(roomId, localStream)</code><br>
+4. Interviewer receives: <code>peerInstance.current.on("call", incomingCall)</code> → <code>incomingCall.answer(localStream)</code><br>
+5. Both receive <code>"stream"</code> event → attach to <code>&lt;video&gt;</code> via <code>ref.current.srcObject = remoteStream</code></div>
+
+<h3>Q45: How does video toggle work technically?</h3>
+<div class="answer"><strong>Turning OFF:</strong> <code>track.stop()</code> (stops camera hardware), <code>removeTrack()</code>, <code>videoSender.replaceTrack(null)</code> (remote sees black).
+<br><strong>Turning ON:</strong> <code>getUserMedia({video:true})</code> (re-acquires camera), <code>addTrack()</code>, <code>videoSender.replaceTrack(newTrack)</code> (hot-swaps without renegotiation).</div>
+
+<h3>Q46: WebSocket vs WebRTC — when to use which?</h3>
+<div class="answer">
+<table>
+<tr><th></th><th>WebSocket (Socket.io)</th><th>WebRTC (PeerJS)</th></tr>
+<tr><td>Architecture</td><td>Client ↔ Server ↔ Client</td><td>Client ↔ Client (P2P)</td></tr>
+<tr><td>Data type</td><td>Text/JSON</td><td>Media streams + DataChannels</td></tr>
+<tr><td>Use in CodeSync</td><td>Code, notes, language, I/O sync</td><td>Audio/video calls</td></tr>
+<tr><td>Scalability</td><td>Redis Pub/Sub across servers</td><td>Poor (mesh topology)</td></tr>
+</table></div>
+
+<h2>SECTION 9: CODE EXECUTION ENGINE</h2>
+
+<h3>Q47: How does Piston work?</h3>
+<div class="answer">Piston is an open-source code execution engine. Each execution runs in an isolated Docker container with CPU/memory/time limits. The container is destroyed after execution. Supports 50+ languages. API: <code>POST /api/v2/execute</code> with <code>{language, version, files: [{content: code}], stdin}</code>.</div>
+
+<h3>Q48: Why Piston and not eval()?</h3>
+<div class="answer"><code>eval()</code> runs code in the Node.js server process — catastrophic: filesystem access, network access, infinite loops crash the server. Piston provides sandboxed, isolated execution. Even malicious code can't escape the container.</div>
+
+<h3>Q49: Explain the dual-fallback architecture.</h3>
+<div class="answer">1. Try local Piston (<code>http://localhost:2000</code>) with 5s timeout<br>
+2. If fails → fallback to public Piston API (<code>https://emkc.org/api/v2/execute</code>) with 25s timeout<br>
+3. This ensures code execution works even without Docker running locally.</div>
+
+<h2>SECTION 10: DEVOPS & DOCKER</h2>
+
+<h3>Q50: What is Docker?</h3>
+<div class="answer">Docker packages applications into containers — lightweight, portable, isolated environments that include everything needed to run (code, runtime, dependencies). Unlike VMs, containers share the host OS kernel, making them faster and smaller.</div>
+
+<h3>Q51: Explain the Dockerfile.</h3>
+<div class="answer"><pre># Backend Dockerfile:
+FROM node:20          # Base image with Node.js 20
+WORKDIR /app          # Set working directory
+COPY package*.json ./ # Copy dependency files first (layer caching)
+RUN npm install       # Install dependencies (cached if package.json unchanged)
+COPY . .              # Copy source code
+EXPOSE 3000           # Document the port
+CMD ["npm", "start"]  # Start command</pre>
+<strong>Layer caching:</strong> Docker caches each step. By copying <code>package.json</code> before source code, dependencies are only reinstalled when <code>package.json</code> changes.</div>
+
+<h3>Q52: Explain Docker Compose.</h3>
+<div class="answer">Orchestrates multiple containers as a single application. Our <code>docker-compose.yml</code> defines 3 services:
+<br>• <strong>piston</strong> — code execution engine (privileged mode for nested Docker)
+<br>• <strong>backend</strong> — Node.js server, connects to piston via <code>http://piston:2000</code>
+<br>• <strong>frontend</strong> — Vite dev server
+<br><br><code>depends_on</code> controls startup order. Docker's internal DNS resolves service names as hostnames.</div>
+
+<h3>Q53: What is the Jenkins pipeline?</h3>
+<div class="answer">6 stages: Checkout → Install Dependencies → SonarQube Analysis (static code quality) → OWASP Dependency Check (CVE scanning) → Docker Build + Tag → Docker Push to Docker Hub → Docker Deploy (<code>docker compose up -d</code>).</div>
+
+<h2>SECTION 11: SCALING & HARD QUESTIONS</h2>
+
+<h3>Q54: How would you scale to 10,000 concurrent users?</h3>
+<div class="answer">1. <strong>Redis Adapter for Socket.io</strong> — enables multiple Node instances behind a load balancer to share Socket.io events via Redis Pub/Sub<br>
+2. <strong>Nginx reverse proxy</strong> with sticky sessions for WebSocket connections<br>
+3. <strong>MongoDB Atlas sharding</strong> for database scaling<br>
+4. <strong>Horizontal Piston workers</strong> for code execution</div>
+
+<h3>Q55: What happens when both users type simultaneously?</h3>
+<div class="answer">Current: <strong>last-write-wins</strong>. Every keystroke sends the full editor content. The last message overwrites. Works for 2-user interviews.
+<br><br>For production: implement <strong>CRDTs</strong> (Conflict-free Replicated Data Types) using <strong>Yjs</strong> library with <code>y-monaco</code> binding. Sends only deltas, mathematically guarantees convergence.</div>
+
+<h3>Q56: Why not use a VectorDB?</h3>
+<div class="answer">VectorDB (Pinecone, Weaviate) solves semantic similarity search over high-dimensional embeddings — used for AI/RAG/recommendation. CodeSync has no semantic search, no embeddings, no AI similarity. Our data access is key-value lookups and document retrieval, not nearest-neighbor search.</div>
+
+<h3>Q57: What is the biggest bottleneck in this architecture?</h3>
+<div class="answer">The <strong>single Node.js process</strong>. If it crashes, everything dies. Solutions: PM2 cluster mode (multi-process), Docker Swarm/Kubernetes (multi-container), and Redis Adapter for cross-instance Socket.io communication.</div>
+
+<h3>Q58: How would you add chat functionality?</h3>
+<div class="answer">Add a new Socket.io event: <code>socket.emit("chat-message", {room, message, username, timestamp})</code>. Store messages in a MongoDB collection for history. On the frontend, add a Chat component that listens to <code>"chat-message"</code> events and renders them. Add pagination for older messages.</div>
+
+<h3>Q59: How would you deploy this to production?</h3>
+<div class="answer">
+<strong>Frontend:</strong> Vercel (auto-deploys from GitHub push, global CDN, free SSL)<br>
+<strong>Backend:</strong> Railway or Render (supports WebSockets, unlike Vercel for backend)<br>
+<strong>Database:</strong> MongoDB Atlas (already cloud-hosted)<br>
+<strong>Environment:</strong> Set <code>VITE_API_URL</code> to Railway backend URL, update CORS origins</div>
+
+<h3>Q60: What would you build next?</h3>
+<div class="answer">1. <strong>bcrypt password hashing</strong> (security fix)<br>
+2. <strong>Room persistence</strong> — save code snapshots to MongoDB so users can resume<br>
+3. <strong>Chat system</strong> — text messaging alongside video<br>
+4. <strong>Recording</strong> — record interview sessions for review<br>
+5. <strong>AI code assistant</strong> — integrate Gemini/GPT for hints during practice<br>
+6. <strong>Whiteboard</strong> — collaborative drawing (tldraw is already in dependencies)</div>
+
+<h2>SECTION 12: RAPID-FIRE (Q61-Q75)</h2>
+
+<h3>Q61: What does --legacy-peer-deps do?</h3>
+<div class="answer">Ignores strict peerDependency version conflicts. Some packages (react-quill, tldraw) declare outdated peer deps. Without this flag, npm 7+ refuses to install.</div>
+
+<h3>Q62: What is ES Modules vs CommonJS?</h3>
+<div class="answer">ES Modules: <code>import/export</code> (used in CodeSync — <code>"type": "module"</code> in package.json). CommonJS: <code>require/module.exports</code> (older Node.js style). ES Modules support tree-shaking and static analysis.</div>
+
+<h3>Q63: What is dotenv?</h3>
+<div class="answer">Loads <code>.env</code> file variables into <code>process.env</code>. Called at server start: <code>dotenv.config()</code>. Keeps secrets out of source code.</div>
+
+<h3>Q64: What is cookie-parser?</h3>
+<div class="answer">Express middleware that parses Cookie headers and populates <code>req.cookies</code>. We use it to read the JWT token cookie.</div>
+
+<h3>Q65: What is SWC?</h3>
+<div class="answer">Speedy Web Compiler — a Rust-based JavaScript/TypeScript compiler. Vite uses <code>@vitejs/plugin-react-swc</code> instead of Babel for 20x faster JSX transpilation.</div>
+
+<h3>Q66: What are environment variables in Vite?</h3>
+<div class="answer">Vite exposes only <code>VITE_</code>-prefixed variables from <code>.env</code> to the frontend via <code>import.meta.env.VITE_API_URL</code>. Non-prefixed vars are hidden (security — prevents leaking server secrets to the browser).</div>
+
+<h3>Q67: What is TailwindCSS?</h3>
+<div class="answer">Utility-first CSS framework. Instead of writing CSS classes, you compose styles inline: <code>className="bg-slate-900 text-white p-4 rounded-xl"</code>. Benefits: no CSS file switching, consistent design tokens, automatic purging of unused classes in production.</div>
+
+<h3>Q68: What is the muted attribute on video?</h3>
+<div class="answer">The local video (<code>currentUserVideoRef</code>) has <code>muted</code> attribute to prevent audio feedback loop — hearing your own microphone through your speakers.</div>
+
+<h3>Q69: What is scale-x-[-1] on the local video?</h3>
+<div class="answer">Mirrors the video horizontally so it behaves like a mirror (what users expect from a selfie camera). Without it, raising your right hand appears as the left hand.</div>
+
+<h3>Q70: What is the difference between emit and broadcast?</h3>
+<div class="answer"><code>socket.emit()</code> sends to the sender only. <code>socket.to(room).emit()</code> sends to everyone in the room EXCEPT the sender. <code>io.to(room).emit()</code> sends to everyone INCLUDING the sender.</div>
+
+<h3>Q71: What is Vercel?</h3>
+<div class="answer">Cloud platform optimized for frontend frameworks. Auto-deploys from Git, provides global CDN, free SSL, preview deployments for PRs. Created by the Next.js team.</div>
+
+<h3>Q72: What is SonarQube?</h3>
+<div class="answer">Static code analysis tool that detects bugs, code smells, security vulnerabilities, and code duplication. Runs in our Jenkins pipeline to enforce code quality gates.</div>
+
+<h3>Q73: What is OWASP Dependency Check?</h3>
+<div class="answer">Scans project dependencies against the National Vulnerability Database (NVD) for known CVEs. Generates a report flagging vulnerable packages.</div>
+
+<h3>Q74: What is privileged mode in Docker?</h3>
+<div class="answer">Gives a container full access to the host's kernel capabilities. Piston needs it because it runs Docker containers INSIDE its own container (Docker-in-Docker) to sandbox code execution.</div>
+
+<h3>Q75: What is the difference between dev and production builds?</h3>
+<div class="answer"><strong>Dev:</strong> <code>npm run dev</code> → Vite serves files directly with HMR, source maps, unminified code. Fast but large.<br>
+<strong>Production:</strong> <code>npm run build</code> → Rollup bundles, tree-shakes, minifies, code-splits. Output in <code>dist/</code> folder. Small and optimized.</div>
+
+<h2>CHEAT SHEET</h2>
+<table>
+<tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+<tr><td>Frontend</td><td>React 18 + Vite</td><td>Component UI, instant HMR</td></tr>
+<tr><td>Styling</td><td>TailwindCSS</td><td>Utility-first dark theme</td></tr>
+<tr><td>Editor</td><td>Monaco Editor</td><td>VS Code-grade code editing</td></tr>
+<tr><td>Notes</td><td>ReactQuill</td><td>Rich-text WYSIWYG editor</td></tr>
+<tr><td>Routing</td><td>React Router v6</td><td>Protected SPA routes</td></tr>
+<tr><td>State</td><td>React Context API</td><td>Global shared state</td></tr>
+<tr><td>Real-Time</td><td>Socket.io</td><td>WebSocket rooms + auto-reconnect</td></tr>
+<tr><td>Video/Audio</td><td>PeerJS (WebRTC)</td><td>P2P media streaming</td></tr>
+<tr><td>Backend</td><td>Node.js + Express</td><td>REST API + WebSocket server</td></tr>
+<tr><td>Auth</td><td>JWT</td><td>Stateless token authentication</td></tr>
+<tr><td>Database</td><td>MongoDB Atlas + Mongoose</td><td>Cloud document store + ODM</td></tr>
+<tr><td>Code Exec</td><td>Piston API</td><td>Sandboxed Docker execution</td></tr>
+<tr><td>Containers</td><td>Docker + Compose</td><td>Multi-service orchestration</td></tr>
+<tr><td>CI/CD</td><td>Jenkins + GitHub Actions</td><td>Build, test, deploy pipeline</td></tr>
+</table>
+
+<h2>TOP 5 THINGS TO PROACTIVELY SAY</h2>
+<div class="answer">
+1. "Passwords are in plain text — bcrypt hashing is the first production fix I'd make."<br>
+2. "For horizontal scaling, I'd add Redis Adapter for Socket.io Pub/Sub."<br>
+3. "Last-write-wins works for 2-user interviews; for Google Docs-style, I'd use CRDTs with Yjs."<br>
+4. "The dual Piston fallback ensures code execution works with or without Docker."<br>
+5. "WebSockets for data sync, WebRTC for media — each protocol serves its optimal use case."
+</div>
+
+<p style="text-align:center;margin-top:40px;font-size:12px;color:#888">— End of Interview Guide (75 Questions) —<br>Print both Part 1 and Part 2 for the complete guide.</p>
+</body></html>
