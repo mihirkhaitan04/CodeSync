@@ -20,8 +20,8 @@ const io = new Server(server, {
   cors: {
     origin: [
   CLIENT_URL,
-  "https://codesync-subodh-kumars-projects-79cf1a01.vercel.app",
-  "https://codesync-git-main-subodh-kumars-projects-79cf1a01.vercel.app",
+  "https://codesync-mihirkhaitan04s-projects.vercel.app",
+  "https://codesync-git-main-mihirkhaitan04s-projects.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5173",
@@ -40,8 +40,8 @@ app.use(
   cors({
    origin: [
   CLIENT_URL,
-  "https://codesync-subodh-kumars-projects-79cf1a01.vercel.app",
-  "https://codesync-git-main-subodh-kumars-projects-79cf1a01.vercel.app",
+  "https://codesync-mihirkhaitan04s-projects.vercel.app",
+  "https://codesync-git-main-mihirkhaitan04s-projects.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
   "http://127.0.0.1:5173",

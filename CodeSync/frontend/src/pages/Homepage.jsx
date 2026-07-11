@@ -248,7 +248,7 @@ function Homepage() {
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Connect</h3>
             <div className="flex space-x-3 text-2xl">
               <a
-                href="https://www.linkedin.com/in/subodh2106/"
+                href="https://www.linkedin.com/in/mihirkhaitan04/"
                 className="hover:text-blue-400 hover:scale-110 transition-all"
                 target="_blank"
                 rel="noreferrer"
@@ -256,7 +256,7 @@ function Homepage() {
                 <FaLinkedin />
               </a>
               <a
-                href="https://github.com/Subodh-here01"
+                href="https://github.com/mihirkhaitan04"
                 className="hover:text-white hover:scale-110 transition-all"
                 target="_blank"
                 rel="noreferrer"
